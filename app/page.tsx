@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
@@ -49,18 +49,125 @@ const locations: Location[] = [
   },
 ];
 
+function getDistanceMiles(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 3958.8; // Earth radius in miles
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export default function Home() {
   const [view, setView] = useState<"list" | "map">("list");
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+
+  const requestLocation = useCallback(() => {
+    setLocationLoading(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        setLocationLoading(false);
+
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            const addr = data.address;
+            const city =
+              addr?.city || addr?.town || addr?.village || addr?.hamlet;
+            const state = addr?.state;
+            if (city && state) {
+              // Abbreviate US state names
+              const stateAbbr =
+                state.length > 2 ? state.replace(/\b(\w)\w*\s*/g, "$1").toUpperCase() : state;
+              setLocationName(`${city}, ${stateAbbr}`);
+            } else if (city) {
+              setLocationName(city);
+            }
+          })
+          .catch(() => {
+            // Reverse geocoding failed; coordinates will be used as fallback
+          });
+      },
+      (err) => {
+        setLocationError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied"
+            : "Could not detect location",
+        );
+        setLocationLoading(false);
+      },
+    );
+  }, []);
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
+
+  const sortedLocations = userLocation
+    ? [...locations]
+        .map((loc) => ({
+          ...loc,
+          distance: getDistanceMiles(
+            userLocation.lat,
+            userLocation.lng,
+            loc.lat,
+            loc.lng,
+          ),
+        }))
+        .sort((a, b) => a.distance - b.distance)
+    : locations.map((loc) => ({ ...loc, distance: null as number | null }));
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans">
       <div className="mx-auto max-w-2xl px-4 py-8">
-        <h1 className="mb-2 text-3xl font-bold text-zinc-900">
-          Bathroom Codes
-        </h1>
-        <p className="mb-6 text-zinc-500">
-          {locations.length} saved locations
-        </p>
+        <div className="mb-6 flex items-baseline justify-between">
+          <h1 className="text-3xl font-bold text-zinc-900">
+            Bathroom Codes
+          </h1>
+          <div className="text-sm text-zinc-500">
+            {locationLoading ? (
+              <span>Detecting location...</span>
+            ) : locationError ? (
+              <span>
+                {locationError}
+                {" · "}
+                <button
+                  onClick={requestLocation}
+                  className="cursor-pointer font-medium text-blue-600 hover:text-blue-800"
+                >
+                  Retry
+                </button>
+              </span>
+            ) : (
+              <span>
+                📍 Near{" "}
+                {locationName ||
+                  `${userLocation!.lat.toFixed(2)}, ${userLocation!.lng.toFixed(2)}`}
+              </span>
+            )}
+          </div>
+        </div>
 
         <div className="mb-6 flex gap-1 rounded-lg bg-zinc-200 p-1">
           <button
@@ -87,7 +194,7 @@ export default function Home() {
 
         {view === "list" ? (
           <div className="flex flex-col gap-3">
-            {locations.map((loc) => (
+            {sortedLocations.map((loc) => (
               <div
                 key={loc.id}
                 className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
@@ -97,7 +204,19 @@ export default function Home() {
                     <h2 className="text-lg font-semibold text-zinc-900">
                       {loc.name}
                     </h2>
-                    <p className="mt-1 text-sm text-zinc-500">{loc.address}</p>
+                    <p className="mt-1 text-sm text-zinc-500">
+                      {loc.address}
+                      {loc.distance != null && (
+                        <span className="ml-2 text-zinc-400">
+                          ~{loc.distance < 0.1
+                            ? loc.distance.toFixed(2)
+                            : loc.distance < 10
+                              ? loc.distance.toFixed(1)
+                              : Math.round(loc.distance)}{" "}
+                          mi
+                        </span>
+                      )}
+                    </p>
                     <a
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.name + ", " + loc.address)}`}
                       target="_blank"
@@ -120,7 +239,7 @@ export default function Home() {
             ))}
           </div>
         ) : (
-          <MapView locations={locations} />
+          <MapView locations={locations} userLocation={userLocation} />
         )}
       </div>
     </div>

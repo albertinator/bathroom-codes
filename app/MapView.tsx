@@ -1,8 +1,9 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useEffect, useState } from "react";
 
 // Fix default marker icons for Leaflet in bundled environments
 const defaultIcon = L.icon({
@@ -26,21 +27,81 @@ interface Location {
   lng: number;
 }
 
-export default function MapView({ locations }: { locations: Location[] }) {
-  // Center the map to show all locations (roughly between Boston and Manchester)
-  const center: [number, number] = [42.65, -71.25];
+const allBounds = (locations: Location[]): L.LatLngBoundsExpression => {
+  const lats = locations.map((l) => l.lat);
+  const lngs = locations.map((l) => l.lng);
+  return [
+    [Math.min(...lats), Math.min(...lngs)],
+    [Math.max(...lats), Math.max(...lngs)],
+  ];
+};
+
+function MapController({
+  userLocation,
+  locations,
+}: {
+  userLocation: { lat: number; lng: number } | null;
+  locations: Location[];
+}) {
+  const map = useMap();
+  const [zoomed, setZoomed] = useState(false);
+
+  // On first render, if user location is known, fit bounds to include user + nearest location
+  useEffect(() => {
+    if (userLocation && !zoomed) {
+      const nearest = locations.reduce((best, loc) => {
+        const d = Math.hypot(loc.lat - userLocation.lat, loc.lng - userLocation.lng);
+        return d < best.d ? { loc, d } : best;
+      }, { loc: locations[0], d: Infinity });
+
+      const bounds = L.latLngBounds(
+        [userLocation.lat, userLocation.lng],
+        [nearest.loc.lat, nearest.loc.lng],
+      );
+      map.fitBounds(bounds, { padding: [60, 60], animate: true, maxZoom: 14 });
+      setZoomed(true);
+    }
+  }, [userLocation, zoomed, map, locations]);
+
+  const handleShowAll = () => {
+    map.fitBounds(allBounds(locations), { padding: [40, 40], animate: true });
+  };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200 shadow-sm">
+    <div className="leaflet-top leaflet-right" style={{ pointerEvents: "auto" }}>
+      <button
+        onClick={handleShowAll}
+        className="cursor-pointer rounded bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-md hover:bg-zinc-50"
+        style={{ position: "absolute", top: 10, right: 10, zIndex: 1000 }}
+      >
+        See all locations
+      </button>
+    </div>
+  );
+}
+
+export default function MapView({
+  locations,
+  userLocation,
+}: {
+  locations: Location[];
+  userLocation: { lat: number; lng: number } | null;
+}) {
+  // Default: fit all locations
+  const defaultCenter: [number, number] = [42.65, -71.25];
+
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-zinc-200 shadow-sm">
       <MapContainer
-        center={center}
-        zoom={9}
+        center={userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter}
+        zoom={userLocation ? 13 : 9}
         style={{ height: "500px", width: "100%" }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <MapController userLocation={userLocation} locations={locations} />
         {locations.map((loc) => (
           <Marker key={loc.id} position={[loc.lat, loc.lng]}>
             <Popup>
