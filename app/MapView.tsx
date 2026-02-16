@@ -67,14 +67,52 @@ function MapController({
     map.fitBounds(allBounds(locations), { padding: [40, 40], animate: true });
   };
 
+  const handleZoomToMe = () => {
+    if (userLocation) {
+      const nearest = locations.reduce((best, loc) => {
+        const d = Math.hypot(loc.lat - userLocation.lat, loc.lng - userLocation.lng);
+        return d < best.d ? { loc, d } : best;
+      }, { loc: locations[0], d: Infinity });
+
+      const bounds = L.latLngBounds(
+        [userLocation.lat, userLocation.lng],
+        [nearest.loc.lat, nearest.loc.lng],
+      );
+      map.fitBounds(bounds, { padding: [60, 60], animate: true, maxZoom: 14 });
+    }
+  };
+
   return (
-    <div className="leaflet-top leaflet-right" style={{ pointerEvents: "auto" }}>
+    <div
+      className="flex gap-1.5"
+      style={{ position: "absolute", top: 10, right: 10, zIndex: 1000, pointerEvents: "auto" }}
+    >
+      {userLocation && (
+        <button
+          onClick={handleZoomToMe}
+          className="cursor-pointer rounded bg-white p-1.5 text-zinc-700 shadow-md hover:bg-zinc-50"
+          title="Zoom to my location"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3" />
+            <path d="M12 19v3" />
+            <path d="M2 12h3" />
+            <path d="M19 12h3" />
+          </svg>
+        </button>
+      )}
       <button
         onClick={handleShowAll}
-        className="cursor-pointer rounded bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-md hover:bg-zinc-50"
-        style={{ position: "absolute", top: 10, right: 10, zIndex: 1000 }}
+        className="cursor-pointer rounded bg-white p-1.5 text-zinc-700 shadow-md hover:bg-zinc-50"
+        title="See all locations"
       >
-        See all locations
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 3h6v6" />
+          <path d="M9 21H3v-6" />
+          <path d="M21 3l-7 7" />
+          <path d="M3 21l7-7" />
+        </svg>
       </button>
     </div>
   );
