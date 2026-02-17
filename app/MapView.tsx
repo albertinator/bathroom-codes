@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useState } from "react";
@@ -140,6 +140,20 @@ export default function MapView({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapController userLocation={userLocation} locations={locations} />
+        {userLocation && (
+          <CircleMarker
+            center={[userLocation.lat, userLocation.lng]}
+            radius={8}
+            pathOptions={{
+              color: "#fff",
+              weight: 3,
+              fillColor: "#3b82f6",
+              fillOpacity: 1,
+            }}
+          >
+            <Popup>Your location</Popup>
+          </CircleMarker>
+        )}
         {locations.map((loc) => (
           <Marker key={loc.id} position={[loc.lat, loc.lng]}>
             <Popup>

@@ -160,8 +160,11 @@ export default function Home() {
                 </button>
               </span>
             ) : (
-              <span>
-                📍 Near{" "}
+              <span className="inline-flex items-center gap-1">
+                <svg width="14" height="14" viewBox="0 0 14 14" className="inline-block">
+                  <circle cx="7" cy="7" r="5.5" fill="#3b82f6" stroke="#fff" strokeWidth="2" />
+                </svg>
+                {" "}Near{" "}
                 {locationName ||
                   `${userLocation!.lat.toFixed(2)}, ${userLocation!.lng.toFixed(2)}`}
               </span>
