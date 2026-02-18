@@ -14,41 +14,6 @@ interface Location {
   lng: number;
 }
 
-const locations: Location[] = [
-  {
-    id: 1,
-    name: "Best Buy",
-    address: "14 Allstate Rd, Dorchester, MA 02125",
-    code: "13579#",
-    lat: 42.3468,
-    lng: -71.0545,
-  },
-  {
-    id: 2,
-    name: "Tatte Bakery & Cafe",
-    address: "60 Old Colony Ave, Boston, MA 02127",
-    code: "12345",
-    lat: 42.3375,
-    lng: -71.0503,
-  },
-  {
-    id: 3,
-    name: "Panera Bread",
-    address: "8 Allstate Rd Suite 3, Dorchester, MA 02125",
-    code: "4589",
-    lat: 42.3465,
-    lng: -71.0540,
-  },
-  {
-    id: 4,
-    name: "Raising Cane's",
-    address: "782 S Willow St, Manchester, NH 03103",
-    code: "2060",
-    lat: 42.9634,
-    lng: -71.4618,
-  },
-];
-
 function getDistanceMiles(
   lat1: number,
   lng1: number,
@@ -69,6 +34,7 @@ function getDistanceMiles(
 }
 
 export default function Home() {
+  const [locations, setLocations] = useState<Location[]>([]);
   const [view, setView] = useState<"list" | "map">("list");
   const [userLocation, setUserLocation] = useState<{
     lat: number;
@@ -123,6 +89,15 @@ export default function Home() {
   useEffect(() => {
     requestLocation();
   }, [requestLocation]);
+
+  useEffect(() => {
+    fetch("/api/locations")
+      .then((res) => res.json())
+      .then(setLocations)
+      .catch(() => {
+        // Locations fetch failed; list will remain empty
+      });
+  }, []);
 
   const sortedLocations = userLocation
     ? [...locations]
