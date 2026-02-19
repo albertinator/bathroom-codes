@@ -48,7 +48,7 @@ function MapController({
 
   // On first render, if user location is known, fit bounds to include user + nearest location
   useEffect(() => {
-    if (userLocation && !zoomed) {
+    if (userLocation && !zoomed && locations.length > 0) {
       const nearest = locations.reduce((best, loc) => {
         const d = Math.hypot(loc.lat - userLocation.lat, loc.lng - userLocation.lng);
         return d < best.d ? { loc, d } : best;
@@ -64,11 +64,13 @@ function MapController({
   }, [userLocation, zoomed, map, locations]);
 
   const handleShowAll = () => {
-    map.fitBounds(allBounds(locations), { padding: [40, 40], animate: true });
+    if (locations.length > 0) {
+      map.fitBounds(allBounds(locations), { padding: [40, 40], animate: true });
+    }
   };
 
   const handleZoomToMe = () => {
-    if (userLocation) {
+    if (userLocation && locations.length > 0) {
       const nearest = locations.reduce((best, loc) => {
         const d = Math.hypot(loc.lat - userLocation.lat, loc.lng - userLocation.lng);
         return d < best.d ? { loc, d } : best;
@@ -128,6 +130,23 @@ export default function MapView({
   // Default: fit all locations
   const defaultCenter: [number, number] = [42.65, -71.25];
 
+  const validLocations = locations.filter(
+    (loc) =>
+      typeof loc.lat === "number" &&
+      typeof loc.lng === "number" &&
+      isFinite(loc.lat) &&
+      isFinite(loc.lng),
+  );
+
+  if (validLocations.length === 0) {
+    return (
+      <div className="flex h-[500px] flex-col items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm text-center">
+        <p className="text-sm font-medium text-zinc-700">Map unavailable</p>
+        <p className="mt-1 text-sm text-zinc-400">Location data could not be loaded.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="relative overflow-hidden rounded-xl border border-zinc-200 shadow-sm">
       <MapContainer
@@ -139,7 +158,7 @@ export default function MapView({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapController userLocation={userLocation} locations={locations} />
+        <MapController userLocation={userLocation} locations={validLocations} />
         {userLocation && (
           <CircleMarker
             center={[userLocation.lat, userLocation.lng]}
@@ -154,7 +173,7 @@ export default function MapView({
             <Popup>Your location</Popup>
           </CircleMarker>
         )}
-        {locations.map((loc) => (
+        {validLocations.map((loc) => (
           <Marker key={loc.id} position={[loc.lat, loc.lng]}>
             <Popup>
               <div style={{ minWidth: 160 }}>

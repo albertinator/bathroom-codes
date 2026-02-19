@@ -35,6 +35,8 @@ function getDistanceMiles(
 
 export default function Home() {
   const [locations, setLocations] = useState<Location[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
+  const [locationsError, setLocationsError] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
   const [userLocation, setUserLocation] = useState<{
     lat: number;
@@ -92,10 +94,26 @@ export default function Home() {
 
   useEffect(() => {
     fetch("/api/locations")
-      .then((res) => res.json())
-      .then(setLocations)
+      .then((res) => {
+        if (!res.ok) throw new Error("Bad response");
+        return res.json();
+      })
+      .then((data) => {
+        if (!Array.isArray(data)) throw new Error("Invalid data");
+        setLocations(
+          data.filter(
+            (loc) =>
+              typeof loc.lat === "number" &&
+              typeof loc.lng === "number" &&
+              isFinite(loc.lat) &&
+              isFinite(loc.lng),
+          ),
+        );
+        setLocationsLoading(false);
+      })
       .catch(() => {
-        // Locations fetch failed; list will remain empty
+        setLocationsError(true);
+        setLocationsLoading(false);
       });
   }, []);
 
@@ -171,51 +189,69 @@ export default function Home() {
         </div>
 
         {view === "list" ? (
-          <div className="flex flex-col gap-3">
-            {sortedLocations.map((loc) => (
-              <div
-                key={loc.id}
-                className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-zinc-900">
-                      {loc.name}
-                    </h2>
-                    <p className="mt-1 text-sm text-zinc-500">
-                      {loc.address}
-                      {loc.distance != null && (
-                        <span className="ml-2 text-zinc-400">
-                          ~{loc.distance < 0.1
-                            ? loc.distance.toFixed(2)
-                            : loc.distance < 10
-                              ? loc.distance.toFixed(1)
-                              : Math.round(loc.distance)}{" "}
-                          mi
-                        </span>
-                      )}
-                    </p>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.name + ", " + loc.address)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                        <path fillRule="evenodd" d="M8.157 2.175a1.5 1.5 0 0 0-1.147 0l-4.084 1.69A1.5 1.5 0 0 0 2 5.251v10.877a1.5 1.5 0 0 0 2.074 1.386l3.51-1.453 4.26 1.763a1.5 1.5 0 0 0 1.147 0l4.084-1.69A1.5 1.5 0 0 0 18 14.748V3.873a1.5 1.5 0 0 0-2.074-1.386l-3.51 1.453-4.26-1.763ZM7.58 5a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0v-6.5A.75.75 0 0 1 7.58 5Zm5.59 2.75a.75.75 0 0 0-1.5 0v6.5a.75.75 0 0 0 1.5 0v-6.5Z" clipRule="evenodd" />
-                      </svg>
-                      Directions
-                    </a>
-                  </div>
-                  <div className="rounded-lg bg-blue-50 px-3 py-1.5">
-                    <span className="font-mono text-lg font-bold text-blue-700">
-                      {loc.code}
-                    </span>
+          locationsLoading ? (
+            <div className="flex flex-col gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-24 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+              ))}
+            </div>
+          ) : locationsError ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 py-16 text-center shadow-sm">
+              <p className="text-sm font-medium text-zinc-700">Could not load location data</p>
+              <p className="mt-1 text-sm text-zinc-400">The database may be unreachable. Try refreshing the page.</p>
+            </div>
+          ) : sortedLocations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 py-16 text-center shadow-sm">
+              <p className="text-sm font-medium text-zinc-700">No locations yet</p>
+              <p className="mt-1 text-sm text-zinc-400">Add some bathroom codes to get started.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {sortedLocations.map((loc) => (
+                <div
+                  key={loc.id}
+                  className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-zinc-900">
+                        {loc.name}
+                      </h2>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {loc.address}
+                        {loc.distance != null && (
+                          <span className="ml-2 text-zinc-400">
+                            ~{loc.distance < 0.1
+                              ? loc.distance.toFixed(2)
+                              : loc.distance < 10
+                                ? loc.distance.toFixed(1)
+                                : Math.round(loc.distance)}{" "}
+                            mi
+                          </span>
+                        )}
+                      </p>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.name + ", " + loc.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                          <path fillRule="evenodd" d="M8.157 2.175a1.5 1.5 0 0 0-1.147 0l-4.084 1.69A1.5 1.5 0 0 0 2 5.251v10.877a1.5 1.5 0 0 0 2.074 1.386l3.51-1.453 4.26 1.763a1.5 1.5 0 0 0 1.147 0l4.084-1.69A1.5 1.5 0 0 0 18 14.748V3.873a1.5 1.5 0 0 0-2.074-1.386l-3.51 1.453-4.26-1.763ZM7.58 5a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0v-6.5A.75.75 0 0 1 7.58 5Zm5.59 2.75a.75.75 0 0 0-1.5 0v6.5a.75.75 0 0 0 1.5 0v-6.5Z" clipRule="evenodd" />
+                        </svg>
+                        Directions
+                      </a>
+                    </div>
+                    <div className="rounded-lg bg-blue-50 px-3 py-1.5">
+                      <span className="font-mono text-lg font-bold text-blue-700">
+                        {loc.code}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
         ) : (
           <MapView locations={locations} userLocation={userLocation} />
         )}
