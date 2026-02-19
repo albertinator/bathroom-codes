@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import AddLocationSheet from "./AddLocationSheet";
 
@@ -48,6 +48,8 @@ export default function Home() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const requestLocation = useCallback(() => {
     setLocationLoading(true);
@@ -123,6 +125,13 @@ export default function Home() {
 
   useEffect(() => {
     fetchLocations();
+  }, [fetchLocations]);
+
+  const handleLocationAdded = useCallback(() => {
+    fetchLocations();
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setShowToast(true);
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 3000);
   }, [fetchLocations]);
 
   const sortedLocations = userLocation
@@ -290,8 +299,33 @@ export default function Home() {
         open={showAddSheet}
         onClose={() => setShowAddSheet(false)}
         userLocation={userLocation}
-        onLocationAdded={fetchLocations}
+        onLocationAdded={handleLocationAdded}
       />
+
+      {/* Success toast */}
+      <div
+        className={`fixed bottom-24 left-1/2 z-50 -translate-x-1/2 transition-all duration-300 ${
+          showToast
+            ? "translate-y-0 opacity-100"
+            : "translate-y-2 opacity-0 pointer-events-none"
+        }`}
+      >
+        <div className="flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-3 text-sm font-medium text-white shadow-lg">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="h-4 w-4 shrink-0 text-green-400"
+          >
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Location saved!
+        </div>
+      </div>
     </div>
   );
 }

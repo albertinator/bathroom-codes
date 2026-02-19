@@ -199,7 +199,7 @@ export default function AddLocationSheet({
               </h2>
               <button
                 onClick={onClose}
-                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                className="ml-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
                 aria-label="Close"
               >
                 <svg
@@ -269,7 +269,7 @@ export default function AddLocationSheet({
                           else resultRefs.current[i - 1]?.focus();
                         }
                       }}
-                      className="w-full rounded-xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-blue-50 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 active:bg-blue-50"
+                      className="w-full cursor-pointer rounded-xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-blue-50 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 active:bg-blue-50"
                     >
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="font-medium text-zinc-900">
@@ -337,7 +337,7 @@ export default function AddLocationSheet({
               </h2>
               <button
                 onClick={onClose}
-                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                className="ml-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
                 aria-label="Close"
               >
                 <svg
@@ -399,7 +399,7 @@ export default function AddLocationSheet({
               <button
                 onClick={handleSubmit}
                 disabled={!code.trim() || submitting}
-                className="mt-5 w-full rounded-xl bg-blue-600 py-4 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-5 w-full cursor-pointer rounded-xl bg-blue-600 py-4 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? "Saving..." : "Save Location"}
               </button>
