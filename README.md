@@ -16,11 +16,23 @@ npm install
 cp .env.local.example .env.local
 ```
 
-Edit `.env.local` and fill in your `DATABASE_URL`. For local development using Docker (see next step), use:
+Edit `.env.local` and fill in the required values.
+
+**`DATABASE_URL`** — For local development using Docker (see next step), use:
 
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/bathroom_codes
 ```
+
+**`GOOGLE_PLACES_API_KEY`** — Required for business search. To get a key:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com)
+2. Create a project (or select an existing one)
+3. Enable the **Places API (New)** under APIs & Services
+4. Go to **APIs & Services → Credentials** and create an API key
+5. Paste it as the value of `GOOGLE_PLACES_API_KEY`
+
+Also set this key in your Vercel project settings for production (see [Deployment](#deployment)).
 
 ### 3. Start the local database
 
@@ -77,4 +89,7 @@ The app deploys automatically to Vercel on every push to `main`:
 git push origin main
 ```
 
-Make sure the `DATABASE_URL` environment variable is set in the Vercel project settings, pointing to your production Postgres database.
+Make sure the following environment variables are set in your Vercel project settings:
+
+- `DATABASE_URL` — pointing to your production Postgres database
+- `GOOGLE_PLACES_API_KEY` — your Google Places API key (same one used locally)

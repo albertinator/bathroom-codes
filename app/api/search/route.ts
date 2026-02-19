@@ -8,46 +8,56 @@ export async function GET(request: Request) {
 
   if (!q) return NextResponse.json([]);
 
-  const params = new URLSearchParams({ q, limit: "8", lang: "en" });
-  if (lat && lng) {
-    params.set("lat", lat);
-    params.set("lon", lng);
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) {
+    console.error("GOOGLE_PLACES_API_KEY is not set");
+    return NextResponse.json([]);
   }
 
-  const res = await fetch(`https://photon.komoot.io/api/?${params}`, {
-    headers: { "User-Agent": "BathroomCodes/1.0" },
+  const body: Record<string, unknown> = {
+    textQuery: q,
+    maxResultCount: 8,
+    languageCode: "en",
+  };
+
+  if (lat && lng) {
+    body.locationBias = {
+      circle: {
+        center: { latitude: parseFloat(lat), longitude: parseFloat(lng) },
+        radius: 50000,
+      },
+    };
+  }
+
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location",
+    },
+    body: JSON.stringify(body),
   });
 
-  if (!res.ok) return NextResponse.json([]);
+  if (!res.ok) {
+    console.error("Google Places error:", res.status, await res.text());
+    return NextResponse.json([]);
+  }
 
   const data = await res.json();
 
-  type PhotonFeature = {
-    geometry: { coordinates: [number, number] };
-    properties: Record<string, string | number | undefined>;
+  type Place = {
+    displayName: { text: string };
+    formattedAddress: string;
+    location: { latitude: number; longitude: number };
   };
 
-  const results = (data.features ?? [])
-    .map((f: PhotonFeature) => {
-      const p = f.properties;
-      if (!p.name) return null;
-      const streetPart = p.housenumber
-        ? `${p.housenumber} ${p.street}`
-        : p.street;
-      const addressParts = [
-        streetPart,
-        p.city || p.town || p.village,
-        p.state,
-        p.postcode,
-      ].filter(Boolean);
-      return {
-        name: String(p.name),
-        address: addressParts.join(", "),
-        lat: f.geometry.coordinates[1],
-        lng: f.geometry.coordinates[0],
-      };
-    })
-    .filter(Boolean);
+  const results = (data.places ?? []).map((p: Place) => ({
+    name: p.displayName.text,
+    address: p.formattedAddress,
+    lat: p.location.latitude,
+    lng: p.location.longitude,
+  }));
 
   return NextResponse.json(results);
 }
