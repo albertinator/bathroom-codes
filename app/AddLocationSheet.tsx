@@ -55,6 +55,16 @@ export default function AddLocationSheet({
   const codeInputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+  // Close on ESC key
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   // Reset state after the sheet closes
   useEffect(() => {
     if (!open) {
@@ -316,7 +326,7 @@ export default function AddLocationSheet({
             <div className="relative flex shrink-0 items-center px-4 pb-3 pt-2">
               <button
                 onClick={handleBack}
-                className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
+                className="flex cursor-pointer items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
