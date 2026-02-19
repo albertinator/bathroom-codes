@@ -148,7 +148,7 @@ export default function MapView({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-zinc-200 shadow-sm">
+    <div className="relative isolate overflow-hidden rounded-xl border border-zinc-200 shadow-sm">
       <MapContainer
         center={userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter}
         zoom={userLocation ? 13 : 9}
