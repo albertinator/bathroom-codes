@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
+import AddLocationSheet from "./AddLocationSheet";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
 
@@ -12,6 +13,7 @@ interface Location {
   code: string;
   lat: number;
   lng: number;
+  notes?: string | null;
 }
 
 function getDistanceMiles(
@@ -45,6 +47,7 @@ export default function Home() {
   const [locationName, setLocationName] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
+  const [showAddSheet, setShowAddSheet] = useState(false);
 
   const requestLocation = useCallback(() => {
     setLocationLoading(true);
@@ -88,11 +91,7 @@ export default function Home() {
     );
   }, []);
 
-  useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
-
-  useEffect(() => {
+  const fetchLocations = useCallback(() => {
     fetch("/api/locations")
       .then((res) => {
         if (!res.ok) throw new Error("Bad response");
@@ -110,12 +109,21 @@ export default function Home() {
           ),
         );
         setLocationsLoading(false);
+        setLocationsError(false);
       })
       .catch(() => {
         setLocationsError(true);
         setLocationsLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
+
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
 
   const sortedLocations = userLocation
     ? [...locations]
@@ -203,7 +211,7 @@ export default function Home() {
           ) : sortedLocations.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 py-16 text-center shadow-sm">
               <p className="text-sm font-medium text-zinc-700">No locations yet</p>
-              <p className="mt-1 text-sm text-zinc-400">Add some bathroom codes to get started.</p>
+              <p className="mt-1 text-sm text-zinc-400">Tap + to add a bathroom code.</p>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -213,7 +221,7 @@ export default function Home() {
                   className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="min-w-0 flex-1 pr-3">
                       <h2 className="text-lg font-semibold text-zinc-900">
                         {loc.name}
                       </h2>
@@ -230,6 +238,11 @@ export default function Home() {
                           </span>
                         )}
                       </p>
+                      {loc.notes && (
+                        <p className="mt-1 text-sm italic text-zinc-400">
+                          {loc.notes}
+                        </p>
+                      )}
                       <a
                         href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.name + ", " + loc.address)}`}
                         target="_blank"
@@ -242,7 +255,7 @@ export default function Home() {
                         Directions
                       </a>
                     </div>
-                    <div className="rounded-lg bg-blue-50 px-3 py-1.5">
+                    <div className="shrink-0 rounded-lg bg-blue-50 px-3 py-1.5">
                       <span className="font-mono text-lg font-bold text-blue-700">
                         {loc.code}
                       </span>
@@ -256,6 +269,29 @@ export default function Home() {
           <MapView locations={locations} userLocation={userLocation} />
         )}
       </div>
+
+      {/* Floating Action Button */}
+      <button
+        onClick={() => setShowAddSheet(true)}
+        className="fixed bottom-6 right-6 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition-transform hover:bg-blue-700 active:scale-95"
+        aria-label="Add location"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="h-7 w-7"
+        >
+          <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+        </svg>
+      </button>
+
+      <AddLocationSheet
+        open={showAddSheet}
+        onClose={() => setShowAddSheet(false)}
+        userLocation={userLocation}
+        onLocationAdded={fetchLocations}
+      />
     </div>
   );
 }
