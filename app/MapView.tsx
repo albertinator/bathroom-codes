@@ -18,13 +18,19 @@ const defaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = defaultIcon;
 
+interface Code {
+  id: number;
+  code: string;
+  notes?: string | null;
+}
+
 interface Location {
   id: number;
   name: string;
   address: string;
-  code: string;
   lat: number;
   lng: number;
+  codes: Code[];
 }
 
 const allBounds = (locations: Location[]): L.LatLngBoundsExpression => {
@@ -127,7 +133,6 @@ export default function MapView({
   locations: Location[];
   userLocation: { lat: number; lng: number } | null;
 }) {
-  // Default: fit all locations
   const defaultCenter: [number, number] = [42.65, -71.25];
 
   const validLocations = locations.filter(
@@ -183,13 +188,21 @@ export default function MapView({
                   {loc.address}
                 </span>
                 <hr style={{ margin: "6px 0" }} />
-                <span style={{ fontSize: 12, color: "#666" }}>Code: </span>
-                <strong
-                  style={{ fontSize: 16, fontFamily: "monospace", color: "#1d4ed8" }}
-                >
-                  {loc.code}
-                </strong>
-                <br />
+                {loc.codes.map((c, i) => (
+                  <div key={c.id} style={{ marginTop: i > 0 ? 6 : 0 }}>
+                    <span style={{ fontSize: 12, color: "#666" }}>Code: </span>
+                    <strong
+                      style={{ fontSize: 16, fontFamily: "monospace", color: "#1d4ed8" }}
+                    >
+                      {c.code}
+                    </strong>
+                    {c.notes && (
+                      <span style={{ fontSize: 11, color: "#888", fontStyle: "italic", marginLeft: 4 }}>
+                        {c.notes}
+                      </span>
+                    )}
+                  </div>
+                ))}
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.name + ", " + loc.address)}`}
                   target="_blank"

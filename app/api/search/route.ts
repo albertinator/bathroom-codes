@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location",
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location",
     },
     body: JSON.stringify(body),
   });
@@ -47,12 +47,14 @@ export async function GET(request: Request) {
   const data = await res.json();
 
   type Place = {
+    id: string;
     displayName: { text: string };
     formattedAddress: string;
     location: { latitude: number; longitude: number };
   };
 
   const results = (data.places ?? []).map((p: Place) => ({
+    placeId: p.id,
     name: p.displayName.text,
     address: p.formattedAddress,
     lat: p.location.latitude,

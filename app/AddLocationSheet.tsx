@@ -3,11 +3,23 @@
 import { useState, useEffect, useRef } from "react";
 
 interface SearchResult {
+  placeId: string;
   name: string;
   address: string;
   lat: number;
   lng: number;
   distance?: number;
+}
+
+interface ExistingCode {
+  id: number;
+  code: string;
+  notes?: string | null;
+}
+
+interface ExistingLocation {
+  googlePlaceId: string | null;
+  codes: ExistingCode[];
 }
 
 function getDistanceMiles(
@@ -32,6 +44,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   userLocation: { lat: number; lng: number } | null;
+  existingLocations: ExistingLocation[];
   onLocationAdded: () => void;
 }
 
@@ -39,6 +52,7 @@ export default function AddLocationSheet({
   open,
   onClose,
   userLocation,
+  existingLocations,
   onLocationAdded,
 }: Props) {
   const [step, setStep] = useState<"search" | "code">("search");
@@ -46,6 +60,7 @@ export default function AddLocationSheet({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<SearchResult | null>(null);
+  const [existingCodes, setExistingCodes] = useState<ExistingCode[]>([]);
   const [code, setCode] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -73,6 +88,7 @@ export default function AddLocationSheet({
         setQuery("");
         setResults([]);
         setSelected(null);
+        setExistingCodes([]);
         setCode("");
         setNotes("");
         setSubmitError(null);
@@ -142,6 +158,11 @@ export default function AddLocationSheet({
 
   const handleSelect = (result: SearchResult) => {
     setSelected(result);
+    // Check if we already have codes for this place
+    const match = existingLocations.find(
+      (loc) => loc.googlePlaceId && loc.googlePlaceId === result.placeId,
+    );
+    setExistingCodes(match?.codes ?? []);
     setStep("code");
   };
 
@@ -167,6 +188,7 @@ export default function AddLocationSheet({
           lat: selected.lat,
           lng: selected.lng,
           notes: notes.trim() || null,
+          placeId: selected.placeId,
         }),
       });
       if (!res.ok) throw new Error("Server error");
@@ -264,45 +286,60 @@ export default function AddLocationSheet({
                 </div>
               ) : results.length > 0 ? (
                 <div className="flex flex-col gap-2">
-                  {results.map((result, i) => (
-                    <button
-                      key={i}
-                      ref={(el) => { resultRefs.current[i] = el; }}
-                      onClick={() => handleSelect(result)}
-                      onKeyDown={(e) => {
-                        if (e.key === "ArrowDown") {
-                          e.preventDefault();
-                          resultRefs.current[i + 1]?.focus();
-                        } else if (e.key === "ArrowUp") {
-                          e.preventDefault();
-                          if (i === 0) searchInputRef.current?.focus();
-                          else resultRefs.current[i - 1]?.focus();
-                        }
-                      }}
-                      className="w-full cursor-pointer rounded-xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-blue-50 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 active:bg-blue-50"
-                    >
-                      <div className="flex items-baseline justify-between gap-2">
-                        <div className="font-medium text-zinc-900">
-                          {result.name}
+                  {results.map((result, i) => {
+                    const hasCode = existingLocations.some(
+                      (loc) =>
+                        loc.googlePlaceId &&
+                        loc.googlePlaceId === result.placeId &&
+                        loc.codes.length > 0,
+                    );
+                    return (
+                      <button
+                        key={i}
+                        ref={(el) => { resultRefs.current[i] = el; }}
+                        onClick={() => handleSelect(result)}
+                        onKeyDown={(e) => {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            resultRefs.current[i + 1]?.focus();
+                          } else if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            if (i === 0) searchInputRef.current?.focus();
+                            else resultRefs.current[i - 1]?.focus();
+                          }
+                        }}
+                        className="w-full cursor-pointer rounded-xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-blue-50 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 active:bg-blue-50"
+                      >
+                        <div className="flex items-baseline justify-between gap-2">
+                          <div className="font-medium text-zinc-900">
+                            {result.name}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {hasCode && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                Have code
+                              </span>
+                            )}
+                            {result.distance != null && (
+                              <div className="text-sm text-zinc-400">
+                                {result.distance < 0.1
+                                  ? result.distance.toFixed(2)
+                                  : result.distance < 10
+                                    ? result.distance.toFixed(1)
+                                    : Math.round(result.distance)}{" "}
+                                mi
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {result.distance != null && (
-                          <div className="shrink-0 text-sm text-zinc-400">
-                            {result.distance < 0.1
-                              ? result.distance.toFixed(2)
-                              : result.distance < 10
-                                ? result.distance.toFixed(1)
-                                : Math.round(result.distance)}{" "}
-                            mi
+                        {result.address && (
+                          <div className="mt-0.5 text-sm text-zinc-500">
+                            {result.address}
                           </div>
                         )}
-                      </div>
-                      {result.address && (
-                        <div className="mt-0.5 text-sm text-zinc-500">
-                          {result.address}
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               ) : query.trim() ? (
                 <div className="py-10 text-center text-sm text-zinc-400">
@@ -363,7 +400,7 @@ export default function AddLocationSheet({
 
             <div className="flex-1 overflow-y-auto px-4 pb-10">
               {/* Selected business */}
-              <div className="mb-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <div className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                 <div className="font-medium text-zinc-900">{selected?.name}</div>
                 {selected?.address && (
                   <div className="mt-0.5 text-sm text-zinc-500">
@@ -371,6 +408,34 @@ export default function AddLocationSheet({
                   </div>
                 )}
               </div>
+
+              {/* Existing codes notice */}
+              {existingCodes.length > 0 && (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-medium text-amber-800">
+                    {existingCodes.length === 1
+                      ? "You already have a code here"
+                      : `You already have ${existingCodes.length} codes here`}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {existingCodes.map((c) => (
+                      <div key={c.id} className="flex flex-col">
+                        <span className="font-mono text-base font-bold text-amber-700">
+                          {c.code}
+                        </span>
+                        {c.notes && (
+                          <span className="text-xs italic text-amber-600">
+                            {c.notes}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-amber-700">
+                    You can still add another if needed.
+                  </p>
+                </div>
+              )}
 
               {/* Code input */}
               <label className="mb-2 block text-sm font-medium text-zinc-700">
