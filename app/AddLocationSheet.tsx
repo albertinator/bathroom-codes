@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+
+const SearchResultsMap = dynamic(() => import("./SearchResultsMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[340px] items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-sm text-zinc-400">
+      Loading map...
+    </div>
+  ),
+});
 
 interface SearchResult {
   placeId: string;
@@ -58,6 +68,7 @@ export default function AddLocationSheet({
   const [step, setStep] = useState<"search" | "code">("search");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [resultsView, setResultsView] = useState<"list" | "map">("list");
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<SearchResult | null>(null);
   const [existingCodes, setExistingCodes] = useState<ExistingCode[]>([]);
@@ -87,6 +98,7 @@ export default function AddLocationSheet({
         setStep("search");
         setQuery("");
         setResults([]);
+        setResultsView("list");
         setSelected(null);
         setExistingCodes([]);
         setCode("");
@@ -143,6 +155,7 @@ export default function AddLocationSheet({
           data.sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
         }
         setResults(data);
+        setResultsView("list");
       } catch (e: unknown) {
         if (e instanceof Error && e.name !== "AbortError") setResults([]);
       } finally {
@@ -278,6 +291,58 @@ export default function AddLocationSheet({
               </div>
             </div>
 
+            {/* List / Map toggle — pinned above the scroll area */}
+            {!searching && results.length > 0 && (
+              <div className="shrink-0 px-4 pb-2">
+                <div className="flex rounded-lg border border-zinc-200 bg-zinc-100 p-0.5">
+                  <button
+                    onClick={() => setResultsView("list")}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      resultsView === "list"
+                        ? "bg-white text-zinc-900 shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-700"
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm0 10.5a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75ZM2 10a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    List
+                  </button>
+                  <button
+                    onClick={() => setResultsView("map")}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      resultsView === "map"
+                        ? "bg-white text-zinc-900 shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-700"
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="m9.69 18.933.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 0 0 .281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 1 0 3 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 0 0 2.273 1.765 11.842 11.842 0 0 0 .903.5l.018.008.006.003ZM10 11.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Map
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Results */}
             <div className="flex-1 overflow-y-auto px-4 pb-8 pt-1">
               {searching ? (
@@ -285,62 +350,80 @@ export default function AddLocationSheet({
                   Searching...
                 </div>
               ) : results.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  {results.map((result, i) => {
-                    const hasCode = existingLocations.some(
-                      (loc) =>
-                        loc.googlePlaceId &&
-                        loc.googlePlaceId === result.placeId &&
-                        loc.codes.length > 0,
-                    );
-                    return (
-                      <button
-                        key={i}
-                        ref={(el) => { resultRefs.current[i] = el; }}
-                        onClick={() => handleSelect(result)}
-                        onKeyDown={(e) => {
-                          if (e.key === "ArrowDown") {
-                            e.preventDefault();
-                            resultRefs.current[i + 1]?.focus();
-                          } else if (e.key === "ArrowUp") {
-                            e.preventDefault();
-                            if (i === 0) searchInputRef.current?.focus();
-                            else resultRefs.current[i - 1]?.focus();
-                          }
-                        }}
-                        className="w-full cursor-pointer rounded-xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-blue-50 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 active:bg-blue-50"
-                      >
-                        <div className="flex items-baseline justify-between gap-2">
-                          <div className="font-medium text-zinc-900">
-                            {result.name}
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            {hasCode && (
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                                Have code
-                              </span>
-                            )}
-                            {result.distance != null && (
-                              <div className="text-sm text-zinc-400">
-                                {result.distance < 0.1
-                                  ? result.distance.toFixed(2)
-                                  : result.distance < 10
-                                    ? result.distance.toFixed(1)
-                                    : Math.round(result.distance)}{" "}
-                                mi
+                <>
+                  {resultsView === "list" ? (
+                    <div className="flex flex-col gap-2">
+                      {results.map((result, i) => {
+                        const hasCode = existingLocations.some(
+                          (loc) =>
+                            loc.googlePlaceId &&
+                            loc.googlePlaceId === result.placeId &&
+                            loc.codes.length > 0,
+                        );
+                        return (
+                          <button
+                            key={i}
+                            ref={(el) => { resultRefs.current[i] = el; }}
+                            onClick={() => handleSelect(result)}
+                            onKeyDown={(e) => {
+                              if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                resultRefs.current[i + 1]?.focus();
+                              } else if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                if (i === 0) searchInputRef.current?.focus();
+                                else resultRefs.current[i - 1]?.focus();
+                              }
+                            }}
+                            className="w-full cursor-pointer rounded-xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-blue-50 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 active:bg-blue-50"
+                          >
+                            <div className="flex items-baseline justify-between gap-2">
+                              <div className="font-medium text-zinc-900">
+                                {result.name}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2">
+                                {hasCode && (
+                                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                    Have code
+                                  </span>
+                                )}
+                                {result.distance != null && (
+                                  <div className="text-sm text-zinc-400">
+                                    {result.distance < 0.1
+                                      ? result.distance.toFixed(2)
+                                      : result.distance < 10
+                                        ? result.distance.toFixed(1)
+                                        : Math.round(result.distance)}{" "}
+                                    mi
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {result.address && (
+                              <div className="mt-0.5 text-sm text-zinc-500">
+                                {result.address}
                               </div>
                             )}
-                          </div>
-                        </div>
-                        {result.address && (
-                          <div className="mt-0.5 text-sm text-zinc-500">
-                            {result.address}
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <SearchResultsMap
+                      results={results}
+                      userLocation={userLocation}
+                      hasCode={(placeId) =>
+                        existingLocations.some(
+                          (loc) =>
+                            loc.googlePlaceId &&
+                            loc.googlePlaceId === placeId &&
+                            loc.codes.length > 0,
+                        )
+                      }
+                      onSelect={handleSelect}
+                    />
+                  )}
+                </>
               ) : query.trim() ? (
                 <div className="py-10 text-center text-sm text-zinc-400">
                   No results found
